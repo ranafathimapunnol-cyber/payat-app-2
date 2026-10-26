@@ -347,7 +347,7 @@ class PersonPayatRecordView(generics.RetrieveUpdateAPIView):
 # =========================================================
 
 class LinkRegisteredUserView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]  # noqa: RUF012
 
     def post(self, request):
         user_id = request.data.get("user_id")

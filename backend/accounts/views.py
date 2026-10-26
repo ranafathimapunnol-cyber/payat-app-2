@@ -2,8 +2,9 @@
 import secrets
 from datetime import timedelta
 
+from core.models import OTP, AuditLog, Person
 from django.conf import settings
-from django.contrib.auth.hashers import make_password, check_password
+from django.contrib.auth.hashers import check_password, make_password
 from django.core.cache import cache
 from django.core.mail import send_mail
 from django.db import transaction
@@ -13,19 +14,16 @@ from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
-
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.parsers import MultiPartParser, FormParser
 
 from .models import User
 from .serializers import RegistrationSerializer
-from core.models import OTP, AuditLog, Person
-
 
 # =========================================================
 # COOKIE HELPERS
@@ -88,8 +86,8 @@ def csrf_cookie_view(request):
 # =========================================================
 
 class RegisterView(APIView):
-    permission_classes = [AllowAny]
-    authentication_classes = []
+    permission_classes = [AllowAny]  # noqa: RUF012
+    authentication_classes = []  # noqa: RUF012
 
     def post(self, request):
         serializer = RegistrationSerializer(data=request.data)
@@ -175,7 +173,7 @@ class RegisterView(APIView):
 
             cache.set(rate_key, True, timeout=60)
 
-        except Exception:
+        except Exception:  # noqa: BLE001
             return Response(
                 {
                     "detail": (
@@ -203,8 +201,8 @@ class RegisterView(APIView):
 # =========================================================
 
 class VerifyOTPView(APIView):
-    permission_classes = [AllowAny]
-    authentication_classes = []
+    permission_classes = [AllowAny]  # noqa: RUF012
+    authentication_classes = []  # noqa: RUF012
 
     def post(self, request):
         email = request.data.get("email", "")

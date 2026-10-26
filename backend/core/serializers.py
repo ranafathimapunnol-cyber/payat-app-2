@@ -147,6 +147,7 @@ class PersonSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "phone",
+            "address",
             "status",
             "linked_user",
             "invited_email",

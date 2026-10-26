@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -13,9 +14,13 @@ import {
   ShieldCheck,
   LoaderCircle,
 } from "lucide-react";
+import {
+  GoogleLogin,
+  GoogleOAuthProvider,
+} from "@react-oauth/google";
 import { apiFetch } from "@/lib/api";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
@@ -50,6 +55,39 @@ export default function LoginPage() {
       }
 
       router.replace("/dashboard");
+      router.refresh();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to connect to the server. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGoogleLogin(credential: string) {
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await apiFetch("/api/auth/google/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail || "Google sign-in failed. Please try again."
+        );
+      }
+
+      router.replace("/dashboard");
+      router.refresh();
     } catch (err) {
       setError(
         err instanceof Error
@@ -71,6 +109,7 @@ export default function LoginPage() {
         <h1 className="font-serif text-3xl leading-tight tracking-tight sm:text-4xl">
           Sign in to Payat
         </h1>
+
         <p className="mt-2 text-sm leading-5 text-[#777A80]">
           Sign in to manage your money and track your finances.
         </p>
@@ -83,8 +122,10 @@ export default function LoginPage() {
             >
               Email
             </label>
+
             <div className="flex h-11 items-center gap-3 rounded-lg border border-[#DAD9D4] bg-white px-3 transition focus-within:border-[#14243D] focus-within:ring-2 focus-within:ring-[#14243D]/10">
               <Mail className="h-4 w-4 shrink-0 text-[#747982]" />
+
               <input
                 id="email"
                 type="email"
@@ -105,8 +146,10 @@ export default function LoginPage() {
             >
               Password
             </label>
+
             <div className="flex h-11 items-center gap-3 rounded-lg border border-[#DAD9D4] bg-white px-3 transition focus-within:border-[#14243D] focus-within:ring-2 focus-within:ring-[#14243D]/10">
               <LockKeyhole className="h-4 w-4 shrink-0 text-[#747982]" />
+
               <input
                 id="password"
                 type={showPassword ? "text" : "password"}
@@ -117,9 +160,10 @@ export default function LoginPage() {
                 placeholder="Enter your password"
                 className="h-full w-full bg-transparent text-xs outline-none placeholder:text-[#96989C]"
               />
+
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={() => setShowPassword((previous) => !previous)}
                 aria-label={showPassword ? "Hide password" : "Show password"}
                 className="shrink-0 text-[#747982] hover:text-[#14243D]"
               >
@@ -157,6 +201,46 @@ export default function LoginPage() {
           </button>
         </form>
 
+        <div className="relative my-5">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-[#DFDED8]" />
+          </div>
+
+          <div className="relative flex justify-center">
+            <span className="bg-[#FAF9F6] px-3 text-xs text-[#777A80]">
+              OR CONTINUE WITH
+            </span>
+          </div>
+        </div>
+
+        <div className="flex min-h-10 justify-center">
+          {loading ? (
+            <div className="flex h-10 items-center gap-2 text-xs text-[#777A80]">
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+              Please wait...
+            </div>
+          ) : (
+            <GoogleLogin
+              onSuccess={(response) => {
+                if (response.credential) {
+                  void handleGoogleLogin(response.credential);
+                } else {
+                  setError("Google did not return an ID token.");
+                }
+              }}
+              onError={() => {
+                setError("Google sign-in was unsuccessful. Please try again.");
+              }}
+              useOneTap={false}
+              theme="outline"
+              size="large"
+              shape="rectangular"
+              text="continue_with"
+              width="320"
+            />
+          )}
+        </div>
+
         <p className="mt-6 text-xs text-[#666970]">
           Don&apos;t have an account?{" "}
           <Link
@@ -169,6 +253,7 @@ export default function LoginPage() {
 
         <div className="mt-9 flex items-start gap-3 border-t border-[#DFDED8] pt-5">
           <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#14243D]" />
+
           <p className="text-[11px] leading-4 text-[#696C72]">
             Your account security matters. Your information is protected
             through secure authentication.
@@ -176,8 +261,23 @@ export default function LoginPage() {
         </div>
 
         <p className="mt-7 text-[11px] text-[#A0A09D]">
-© 2026 Payat. All rights reserved.        </p>
+          © 2026 Payat. All rights reserved.
+        </p>
       </section>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+  if (!clientId) {
+    return <LoginForm />;
+  }
+
+  return (
+    <GoogleOAuthProvider clientId={clientId}>
+      <LoginForm />
+    </GoogleOAuthProvider>
   );
 }

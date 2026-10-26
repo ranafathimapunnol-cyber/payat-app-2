@@ -3,7 +3,6 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ComponentType, SVGProps } from "react";
 import {
   Activity,
   ArrowDownLeft,
@@ -21,15 +20,9 @@ import {
   Search,
   ShieldCheck,
   Users,
+  Wallet,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
-
-type IconType = ComponentType<
-  SVGProps<SVGSVGElement> & {
-    size?: number;
-    strokeWidth?: number;
-  }
->;
 
 type ActivityItem = {
   id: number;
@@ -91,10 +84,10 @@ function SectionTitle({
 }) {
   return (
     <div className="mb-4">
-      <h2 className="text-[15px] font-semibold tracking-tight text-[#15223b]">
+      <h2 className="font-serif text-lg tracking-tight text-[#14243D]">
         {title}
       </h2>
-      <p className="mt-1 text-xs leading-5 text-slate-500">
+      <p className="mt-1 text-xs leading-5 text-[#777A80]">
         {description}
       </p>
     </div>
@@ -110,23 +103,25 @@ function StatCard({
   title: string;
   value: string;
   description: string;
-  icon: IconType;
+  icon: typeof Users;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-900/[0.02]">
+    <div className="rounded-xl border border-[#DFDED8] bg-white p-5 transition hover:border-[#C9C2B5]">
       <div className="flex items-start justify-between gap-3">
-        <p className="text-xs font-medium text-slate-500">{title}</p>
+        <p className="text-xs font-medium text-[#777A80]">{title}</p>
 
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#edf2fa] text-[#203a64]">
-          <Icon size={18} />
+        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#F0EEE8] text-[#14243D]">
+          <Icon size={18} strokeWidth={1.7} />
         </span>
       </div>
 
-      <p className="mt-5 text-2xl font-semibold tracking-tight text-[#14213a]">
+      <p className="mt-5 break-words text-2xl font-semibold tracking-tight text-[#14243D]">
         {value}
       </p>
 
-      <p className="mt-2 text-[11px] text-slate-500">{description}</p>
+      <p className="mt-2 text-[11px] leading-4 text-[#777A80]">
+        {description}
+      </p>
     </div>
   );
 }
@@ -134,7 +129,6 @@ function StatCard({
 export default function DashboardPage() {
   const [summary, setSummary] =
     useState<DashboardSummary>(emptySummary);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -151,6 +145,7 @@ export default function DashboardPage() {
       if (!response.ok) {
         throw new Error(
           data.detail ||
+            data.error ||
             `Could not load dashboard (HTTP ${response.status}).`
         );
       }
@@ -184,9 +179,7 @@ export default function DashboardPage() {
   const filteredActivity = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    if (!query) {
-      return summary.recent_activity;
-    }
+    if (!query) return summary.recent_activity;
 
     return summary.recent_activity.filter((item) =>
       `${item.person_name} ${item.entry_label} ${item.amount} ${item.date}`
@@ -196,36 +189,38 @@ export default function DashboardPage() {
   }, [search, summary.recent_activity]);
 
   return (
-    // The shared DashboardShell already renders the sidebar.
-    <div className="min-h-screen min-w-0 bg-[#f5f7fb] text-[#172033]">
+    <main className="min-h-screen min-w-0 bg-[#FAF9F6] text-[#14243D]">
       {/* Header */}
-      <header className="sticky top-0 z-20 flex min-h-[68px] items-center justify-between gap-4 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-7 xl:px-9">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-            PAYAT / Workspace
-          </p>
+      <header className="sticky top-0 z-20 flex min-h-[72px] items-center justify-between gap-3 border-b border-[#DFDED8] bg-[#FAF9F6]/95 px-4 py-4 backdrop-blur sm:px-7 xl:px-9">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#14243D] text-white">
+            <Wallet size={18} />
+          </div>
 
-          <h1 className="mt-1 text-lg font-semibold tracking-tight text-[#14213a]">
-            Home overview
-          </h1>
+          <div>
+            <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#8C7547]">
+              PAYAT / Workspace
+            </p>
+            <h1 className="mt-0.5 font-serif text-xl tracking-tight text-[#14243D]">
+              Home overview
+            </h1>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() =>
-              setNotificationsOpen((open) => !open)
-            }
+            onClick={() => setNotificationsOpen((open) => !open)}
             aria-expanded={notificationsOpen}
             aria-label="Toggle notifications"
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#DAD9D4] bg-white text-[#14243D] transition hover:bg-[#F0EEE8]"
           >
-            <Bell size={17} />
+            <Bell size={17} strokeWidth={1.7} />
           </button>
 
           <Link
             href="/profile"
-            className="hidden h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50 sm:flex"
+            className="hidden h-10 items-center gap-2 rounded-lg border border-[#DAD9D4] bg-white px-3 text-xs font-medium text-[#14243D] transition hover:bg-[#F0EEE8] sm:flex"
           >
             My account
             <ChevronRight size={14} />
@@ -236,8 +231,16 @@ export default function DashboardPage() {
       <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-7 sm:py-8 xl:px-9">
         {/* Notifications */}
         {notificationsOpen && (
-          <div className="mb-5 rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-600">
-            You have no new notifications yet.
+          <div className="mb-5 flex items-center gap-3 rounded-xl border border-[#DFDED8] bg-white p-4">
+            <Bell size={17} className="shrink-0 text-[#8C7547]" />
+            <div>
+              <p className="text-xs font-medium text-[#14243D]">
+                Notifications
+              </p>
+              <p className="mt-1 text-xs text-[#777A80]">
+                You have no new notifications yet.
+              </p>
+            </div>
           </div>
         )}
 
@@ -262,21 +265,21 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Welcome section */}
-        <section className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        {/* Welcome */}
+        <section className="mb-8 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              <span className="text-[9px] font-semibold uppercase tracking-[0.13em] text-slate-600">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#DFDED8] bg-white px-3 py-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#8C7547]" />
+              <span className="text-[9px] font-semibold uppercase tracking-[0.13em] text-[#777A80]">
                 Your community finance
               </span>
             </div>
 
-            <h2 className="text-2xl font-semibold tracking-tight text-[#14213a] sm:text-3xl">
+            <h2 className="font-serif text-3xl leading-tight tracking-tight text-[#14243D] sm:text-4xl">
               Community starts with trust.
             </h2>
 
-            <p className="mt-2 max-w-2xl text-xs leading-6 text-slate-500 sm:text-sm">
+            <p className="mt-3 max-w-2xl text-xs leading-6 text-[#777A80] sm:text-sm">
               See the people in your community and the money you
               still need to give or receive.
             </p>
@@ -285,7 +288,7 @@ export default function DashboardPage() {
           <div className="flex flex-wrap gap-2">
             <Link
               href="/people"
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#DAD9D4] bg-white px-3.5 text-xs font-medium text-[#14243D] transition hover:bg-[#F0EEE8]"
             >
               <Users size={15} />
               Add a person
@@ -293,7 +296,7 @@ export default function DashboardPage() {
 
             <Link
               href="/payats"
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#14284b] px-3.5 text-xs font-semibold text-white hover:bg-[#203a64]"
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#14243D] px-3.5 text-xs font-medium text-white transition hover:bg-[#203958]"
             >
               <Plus size={15} />
               Manage Payats
@@ -311,22 +314,18 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
               title="People added"
-              value={
-                loading ? "…" : String(summary.people_count)
-              }
+              value={loading ? "…" : String(summary.people_count)}
               description="People in your list"
               icon={Users}
             />
 
             <StatCard
-              title="Registered Users"
+              title="Registered users"
               value={
-                loading
-                  ? "…"
-                  : String(summary.registered_users_count)
+                loading ? "…" : String(summary.registered_users_count)
               }
               description="Active, non-blocked user accounts"
-              icon={Users}
+              icon={ShieldCheck}
             />
 
             <StatCard
@@ -345,77 +344,76 @@ export default function DashboardPage() {
           </div>
 
           {loading && (
-            <p className="mt-3 flex items-center gap-2 text-[11px] text-slate-500">
+            <p className="mt-3 flex items-center gap-2 text-[11px] text-[#777A80]">
               <LoaderCircle size={13} className="animate-spin" />
               Loading your saved records…
             </p>
           )}
         </section>
 
-        {/* Money summary and workspace card */}
+        {/* Money summary */}
         <section className="mb-8 grid grid-cols-1 items-stretch gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(300px,0.7fr)]">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-            <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="rounded-xl border border-[#DFDED8] bg-white p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-sm font-semibold text-[#14213a]">
+                <h3 className="font-serif text-xl text-[#14243D]">
                   Money summary
                 </h3>
-                <p className="mt-1 text-[11px] text-slate-500">
+                <p className="mt-1 text-xs text-[#777A80]">
                   Totals across the people you added
                 </p>
               </div>
 
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#edf2fa] text-[#203a64]">
-                <CreditCard size={18} />
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#F0EEE8] text-[#14243D]">
+                <CreditCard size={19} strokeWidth={1.7} />
               </span>
             </div>
 
             <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-[#dce9df] bg-[#f5faf6] p-4">
-                <div className="flex items-center gap-2 text-xs font-medium text-[#326348]">
+              <div className="rounded-lg border border-[#DFDED8] bg-[#FAF9F6] p-4">
+                <div className="flex items-center gap-2 text-xs font-medium text-[#8C7547]">
                   <ArrowDownLeft size={16} />
                   Bakki Kittan
                 </div>
 
-                <p className="mt-4 break-words text-2xl font-semibold tracking-tight text-[#1e5238]">
+                <p className="mt-4 break-words text-2xl font-semibold tracking-tight text-[#14243D]">
                   {loading ? "…" : money(summary.to_receive)}
                 </p>
 
-                <p className="mt-1.5 text-[10px] leading-4 text-slate-500">
+                <p className="mt-2 text-[10px] leading-4 text-[#777A80]">
                   Money still owed to you
                 </p>
               </div>
 
-              <div className="rounded-xl border border-[#e8e1d6] bg-[#fbf8f3] p-4">
-                <div className="flex items-center gap-2 text-xs font-medium text-[#80613b]">
+              <div className="rounded-lg border border-[#DFDED8] bg-white p-4">
+                <div className="flex items-center gap-2 text-xs font-medium text-[#14243D]">
                   <ArrowUpRight size={16} />
                   Total Kodukkan
                 </div>
 
-                <p className="mt-4 break-words text-2xl font-semibold tracking-tight text-[#674a2d]">
+                <p className="mt-4 break-words text-2xl font-semibold tracking-tight text-[#14243D]">
                   {loading ? "…" : money(summary.to_give)}
                 </p>
 
-                <p className="mt-1.5 text-[10px] leading-4 text-slate-500">
+                <p className="mt-2 text-[10px] leading-4 text-[#777A80]">
                   Money you still need to give
                 </p>
               </div>
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#f5f7fb] p-4">
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#DFDED8] p-4">
               <div>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-[#777A80]">
                   Net position
                 </p>
-
-                <p className="mt-1 text-lg font-semibold text-[#14213a]">
+                <p className="mt-1 text-xl font-semibold text-[#14243D]">
                   {loading ? "…" : money(summary.net_position)}
                 </p>
               </div>
 
               <Link
                 href="/people"
-                className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#203a64] hover:underline"
+                className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#8C7547] hover:text-[#14243D]"
               >
                 Review people
                 <ArrowRight size={14} />
@@ -423,22 +421,26 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="flex flex-col rounded-2xl bg-[#14284b] p-5 text-white sm:p-6">
-            <div className="flex items-center justify-between">
+          {/* Workspace */}
+          <div className="flex flex-col rounded-xl bg-[#14243D] p-5 text-white sm:p-6">
+            <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-[11px] text-slate-300">
+                <p className="text-[11px] text-white/65">
                   Your workspace
                 </p>
-
-                <h3 className="mt-1 text-base font-semibold">
-                  Keep every record clear
+                <h3 className="mt-2 font-serif text-2xl leading-tight">
+                  Keep every record clear.
                 </h3>
               </div>
 
-              <HandCoins size={22} className="text-[#e5dbc4]" />
+              <HandCoins
+                size={25}
+                strokeWidth={1.5}
+                className="shrink-0 text-[#D6C49F]"
+              />
             </div>
 
-            <p className="mt-4 text-xs leading-6 text-slate-300">
+            <p className="mt-4 text-xs leading-6 text-white/70">
               Your totals update from the saved entries attached to
               the people you manage. Add or update a record to keep
               the summary current.
@@ -447,14 +449,14 @@ export default function DashboardPage() {
             <div className="mt-auto pt-6">
               <Link
                 href="/payats"
-                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.07] text-xs font-semibold hover:bg-white/[0.13]"
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/5 text-xs font-medium text-white transition hover:bg-white/10"
               >
                 Open Payats
                 <ArrowRight size={14} />
               </Link>
             </div>
 
-            <div className="mt-5 flex items-center gap-2 text-[10px] text-slate-400">
+            <div className="mt-5 flex items-center gap-2 border-t border-white/15 pt-4 text-[10px] text-white/60">
               <ShieldCheck size={14} />
               Private to your account
             </div>
@@ -462,46 +464,43 @@ export default function DashboardPage() {
         </section>
 
         {/* Recent activity */}
-        <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+        <section className="mb-8 rounded-xl border border-[#DFDED8] bg-white p-5 sm:p-6">
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-            <div>
-              <SectionTitle
-                title="Recent transaction activity"
-                description="Latest saved entries for your people"
-              />
-            </div>
+            <SectionTitle
+              title="Recent transaction activity"
+              description="Latest saved entries for your people"
+            />
 
             <Link
               href="/people"
-              className="mb-4 inline-flex items-center gap-1 text-[11px] font-semibold text-[#203a64] hover:underline"
+              className="mb-4 inline-flex items-center gap-1 text-[11px] font-semibold text-[#8C7547] hover:text-[#14243D]"
             >
               Manage entries
               <ArrowRight size={13} />
             </Link>
           </div>
 
-          <div className="relative mb-3">
+          <div className="relative mb-4">
             <Search
               size={15}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#96989C]"
             />
-
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search person or entry type…"
+              placeholder="Search person or entry type..."
               aria-label="Search recent activity"
-              className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-xs outline-none focus:border-slate-400 sm:max-w-sm"
+              className="h-11 w-full rounded-lg border border-[#DAD9D4] bg-[#FAF9F6] pl-9 pr-3 text-xs text-[#14243D] outline-none transition placeholder:text-[#96989C] focus:border-[#14243D] focus:ring-2 focus:ring-[#14243D]/10 sm:max-w-sm"
             />
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center gap-2 py-10 text-xs text-slate-500">
+            <div className="flex items-center justify-center gap-2 py-10 text-xs text-[#777A80]">
               <LoaderCircle size={15} className="animate-spin" />
               Loading activity…
             </div>
           ) : filteredActivity.length ? (
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-[#EFEEE9]">
               {filteredActivity.map((item) => {
                 const incoming = item.entry_type === "MY_PAYAT";
 
@@ -510,13 +509,7 @@ export default function DashboardPage() {
                     key={item.id}
                     className="flex flex-wrap items-center gap-3 py-4"
                   >
-                    <span
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                        incoming
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-amber-50 text-amber-700"
-                      }`}
-                    >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#F0EEE8] text-[#14243D]">
                       {incoming ? (
                         <ArrowDownLeft size={18} />
                       ) : (
@@ -525,23 +518,22 @@ export default function DashboardPage() {
                     </span>
 
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-semibold text-slate-800">
+                      <p className="truncate text-xs font-semibold text-[#14243D]">
                         {item.person_name}
                       </p>
-
-                      <p className="mt-1 text-[10px] text-slate-500">
+                      <p className="mt-1 text-[10px] text-[#777A80]">
                         {item.entry_label} · {dateLabel(item.date)}
                       </p>
                     </div>
 
-                    <p className="text-sm font-semibold text-[#172033]">
+                    <p className="text-sm font-semibold text-[#14243D]">
                       {money(item.amount)}
                     </p>
 
                     <Link
                       href="/people"
                       aria-label={`View ${item.person_name}`}
-                      className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                      className="rounded-lg p-2 text-[#777A80] transition hover:bg-[#F0EEE8] hover:text-[#14243D]"
                     >
                       <ChevronRight size={16} />
                     </Link>
@@ -550,19 +542,20 @@ export default function DashboardPage() {
               })}
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-slate-200 px-4 py-10 text-center">
+            <div className="rounded-lg border border-dashed border-[#DAD9D4] px-4 py-10 text-center">
               <Activity
-                size={22}
-                className="mx-auto text-slate-400"
+                size={23}
+                strokeWidth={1.5}
+                className="mx-auto text-[#8C7547]"
               />
 
-              <p className="mt-3 text-xs font-semibold text-slate-700">
+              <p className="mt-3 text-xs font-semibold text-[#14243D]">
                 {search
                   ? "No matching activity"
                   : "No transaction entries yet"}
               </p>
 
-              <p className="mt-1 text-[11px] text-slate-500">
+              <p className="mt-2 text-[11px] leading-5 text-[#777A80]">
                 {search
                   ? "Try a different search term."
                   : "Add entries from a person's page and they will appear here."}
@@ -570,7 +563,7 @@ export default function DashboardPage() {
 
               <Link
                 href="/people"
-                className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-[#203a64] hover:underline"
+                className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-[#8C7547] hover:text-[#14243D]"
               >
                 Open People
                 <ArrowRight size={13} />
@@ -580,17 +573,16 @@ export default function DashboardPage() {
         </section>
 
         {/* Community message */}
-        <section className="mb-6 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 sm:flex-row sm:items-center sm:p-6">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#edf2fa] text-[#203a64]">
-            <HeartHandshake size={22} />
+        <section className="mb-6 flex flex-col gap-4 rounded-xl border border-[#DFDED8] bg-white p-5 sm:flex-row sm:items-center sm:p-6">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#F0EEE8] text-[#14243D]">
+            <HeartHandshake size={22} strokeWidth={1.5} />
           </span>
 
           <div className="flex-1">
-            <h3 className="text-xs font-semibold text-[#14213a]">
+            <h3 className="font-serif text-lg text-[#14243D]">
               Support without interest. Built on trust.
             </h3>
-
-            <p className="mt-1 text-[11px] leading-5 text-slate-500">
+            <p className="mt-1 text-[11px] leading-5 text-[#777A80]">
               Keep your community commitments clear and your records
               organised.
             </p>
@@ -598,23 +590,22 @@ export default function DashboardPage() {
 
           <Link
             href="/people"
-            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-[#DAD9D4] px-4 text-xs font-medium text-[#14243D] transition hover:bg-[#F0EEE8]"
           >
             Manage people
             <ArrowRight size={14} />
           </Link>
         </section>
 
-        {/* Static year avoids the prerender current-time warning */}
-        <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 py-5 text-[10px] text-slate-400">
-          <span>© 2026 PAYAT · Community first</span>
-
+        {/* Footer */}
+        <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-[#DFDED8] py-5 text-[10px] text-[#96989C]">
+          <span>© 2026 Payat. All rights reserved.</span>
           <span className="inline-flex items-center gap-1.5">
             <CalendarDays size={12} />
             Your saved records
           </span>
         </footer>
       </div>
-    </div>
+    </main>
   );
 }

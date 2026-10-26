@@ -2,16 +2,16 @@
 from django.urls import path
 
 from .views import (
-    RegisterView,
-    VerifyOTPView,
+    GoogleLoginView,
     LoginView,
-    RefreshCookieView,
     LogoutView,
-    csrf_cookie_view,
     MeView,
     ProfilePictureView,
+    RefreshCookieView,
     RegisteredUserSearchView,
-    GoogleLoginView,
+    RegisterView,
+    VerifyOTPView,
+    csrf_cookie_view,
 )
 
 urlpatterns = [
