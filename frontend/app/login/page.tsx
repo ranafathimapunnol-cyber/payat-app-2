@@ -23,6 +23,8 @@ import { apiFetch } from "@/lib/api";
 function LoginForm() {
   const router = useRouter();
 
+  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -219,7 +221,7 @@ function LoginForm() {
               <LoaderCircle className="h-4 w-4 animate-spin" />
               Please wait...
             </div>
-          ) : (
+          ) : clientId ? (
             <GoogleLogin
               onSuccess={(response) => {
                 if (response.credential) {
@@ -229,7 +231,9 @@ function LoginForm() {
                 }
               }}
               onError={() => {
-                setError("Google sign-in was unsuccessful. Please try again.");
+                setError(
+                  "Google sign-in was unsuccessful. Please try again."
+                );
               }}
               useOneTap={false}
               theme="outline"
@@ -238,6 +242,10 @@ function LoginForm() {
               text="continue_with"
               width="320"
             />
+          ) : (
+            <p className="py-3 text-xs text-[#777A80]">
+              Google sign-in is not configured.
+            </p>
           )}
         </div>
 
