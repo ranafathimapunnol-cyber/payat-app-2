@@ -1,0 +1,86 @@
+
+from django.urls import path
+
+from .views import (
+    dashboard_summary,
+    PayatListCreateView,
+    PayatDetailView,
+    TransactionListCreateView,
+    OldDataListCreateView,
+    PersonListCreateView,
+    PersonDetailView,
+    PersonProfilePictureView,
+    PersonPayatRecordView,
+    PersonPayatEntryListCreateView,
+    PersonPayatEntryDetailView,
+    LinkRegisteredUserView,
+    InvitePersonView,
+)
+
+urlpatterns = [
+    path(
+        "dashboard-summary/",
+        dashboard_summary,
+        name="dashboard-summary",
+    ),
+    path(
+        "payats/",
+        PayatListCreateView.as_view(),
+        name="payat-list-create",
+    ),
+    path(
+        "payats/<int:pk>/",
+        PayatDetailView.as_view(),
+        name="payat-detail",
+    ),
+    path(
+        "transactions/",
+        TransactionListCreateView.as_view(),
+        name="transaction-list-create",
+    ),
+    path(
+        "old-data/",
+        OldDataListCreateView.as_view(),
+        name="old-data-list-create",
+    ),
+    path(
+        "people/",
+        PersonListCreateView.as_view(),
+        name="people-list-create",
+    ),
+    path(
+        "people/<int:pk>/",
+        PersonDetailView.as_view(),
+        name="person-detail",
+    ),
+    path(
+        "people/<int:person_id>/profile-picture/",
+        PersonProfilePictureView.as_view(),
+        name="person-profile-picture",
+    ),
+    path(
+        "people/<int:person_id>/payat-record/",
+        PersonPayatRecordView.as_view(),
+        name="person-payat-record",
+    ),
+    path(
+        "people/<int:person_id>/payat-entries/",
+        PersonPayatEntryListCreateView.as_view(),
+        name="person-payat-entry-list-create",
+    ),
+    path(
+        "people/<int:person_id>/payat-entries/<int:pk>/",
+        PersonPayatEntryDetailView.as_view(),
+        name="person-payat-entry-detail",
+    ),
+    path(
+        "people/link-user/",
+        LinkRegisteredUserView.as_view(),
+        name="link-registered-user",
+    ),
+    path(
+        "people/invite/",
+        InvitePersonView.as_view(),
+        name="invite-person",
+    ),
+]

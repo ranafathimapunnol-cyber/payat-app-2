@@ -1,0 +1,100 @@
+
+# =========================================================
+# ENVIRONMENT VARIABLES AND SECRETS
+# =========================================================
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Django environment files
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# Next.js environment files
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Never commit credentials, private keys, or certificates
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.json
+credentials.json
+
+
+# =========================================================
+# PYTHON / DJANGO
+# =========================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python packaging and testing
+build/
+dist/
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Django local files
+backend/db.sqlite3
+backend/db.sqlite3-journal
+backend/media/
+backend/staticfiles/
+
+# Logs
+*.log
+
+
+# =========================================================
+# NODE.JS / NEXT.JS
+# =========================================================
+node_modules/
+frontend/node_modules/
+
+.next/
+frontend/.next/
+out/
+frontend/out/
+
+.vercel/
+frontend/.vercel/
+
+.turbo/
+frontend/.turbo/
+
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Generated TypeScript build files
+*.tsbuildinfo
+frontend/next-env.d.ts
+
+
+# =========================================================
+# EDITORS AND OPERATING SYSTEM
+# =========================================================
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
