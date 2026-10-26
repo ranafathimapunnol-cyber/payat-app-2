@@ -544,47 +544,7 @@ export default function ProfilePage() {
               </div>
             </Card>
 
-            {/* Essential account details only */}
-            <Card className="px-5 py-5 sm:px-7 sm:py-6">
-              <div className="mb-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8C7547]">
-                  ACCOUNT DETAILS
-                </p>
-                <h2 className="mt-2 font-serif text-2xl tracking-tight">
-                  Personal information
-                </h2>
-                <p className="mt-2 text-xs leading-5 text-[#777A80]">
-                  The information currently associated with your account.
-                </p>
-              </div>
-
-              <div className="divide-y divide-[#DFDED8] sm:grid sm:grid-cols-2 sm:gap-x-8 sm:divide-y-0">
-                <DetailRow
-                  icon={UserRound}
-                  label="Display name"
-                  value={name}
-                />
-                <DetailRow
-                  icon={Mail}
-                  label="Email address"
-                  value={profile.email}
-                />
-                <DetailRow
-                  icon={UserRound}
-                  label="Username"
-                  value={
-                    profile.username
-                      ? `@${profile.username}`
-                      : "Not provided"
-                  }
-                />
-                <DetailRow
-                  icon={ShieldCheck}
-                  label="Account status"
-                  value={status}
-                />
-              </div>
-            </Card>
+           
 
             {/* Simple account action */}
             <Card className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">

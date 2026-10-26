@@ -692,10 +692,11 @@ def dashboard_summary(request):
 
         to_receive += record.bakki_kittan
 
+   
     recent_entries = (
         PersonPayatEntry.objects.filter(person__owner=user)
         .select_related("person")
-        .order_by("-created_at", "-id")[:10]
+        .order_by("-created_at", "-id")
     )
 
     recent_activity = [
