@@ -11,6 +11,8 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token
 
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -367,6 +369,110 @@ class LoginView(APIView):
         response = Response(
             {
                 "detail": "Login successful.",
+                "user": {
+                    "id": user.pk,
+                    "name": user.first_name,
+                    "email": user.email,
+                    "role": user.role,
+                },
+            },
+            status=status.HTTP_200_OK,
+        )
+
+        return set_auth_cookies(response, access, refresh)
+    
+class GoogleLoginView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        token = request.data.get("credential")
+
+        if not isinstance(token, str) or not token:
+            return Response(
+                {"detail": "Google credential is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        client_id = getattr(settings, "GOOGLE_CLIENT_ID", "")
+
+        if not client_id:
+            return Response(
+                {"detail": "Google login is not configured on the server."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        try:
+            google_user = id_token.verify_oauth2_token(
+                token,
+                google_requests.Request(),
+                client_id,
+            )
+        except ValueError:
+            return Response(
+                {"detail": "Invalid Google credential. Please try again."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        # Only accept verified Google email addresses.
+        if not google_user.get("email_verified"):
+            return Response(
+                {"detail": "Your Google email must be verified."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        email = google_user.get("email", "").strip().lower()
+        name = google_user.get("name", "").strip()
+
+        if not email:
+            return Response(
+                {"detail": "Google did not provide an email address."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = User.objects.filter(email__iexact=email).first()
+
+        if user is None:
+            # Do not silently reactivate an existing inactive account.
+            # A new Google user is created as an active account.
+            name_parts = name.split(maxsplit=1)
+
+            user = User.objects.create_user(
+                username=email,
+                email=email,
+                first_name=name_parts[0] if name_parts else "",
+                last_name=name_parts[1] if len(name_parts) > 1 else "",
+                password=None,
+                is_active=True,
+                role=User.Role.USER,
+            )
+
+        if not user.is_active:
+            return Response(
+                {"detail": "This account is inactive. Please contact support."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if user.is_blocked:
+            return Response(
+                {"detail": "Your account has been blocked."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        refresh = RefreshToken.for_user(user)
+        access = refresh.access_token
+
+        AuditLog.objects.create(
+            actor=user,
+            action="LOGIN_SUCCESS",
+            target_type="User",
+            target_id=str(user.pk),
+            ip_address=get_client_ip(request),
+        )
+
+        response = Response(
+            {
+                "detail": "Google login successful.",
                 "user": {
                     "id": user.pk,
                     "name": user.first_name,

@@ -15,6 +15,9 @@ from .views import (
     PersonPayatEntryDetailView,
     LinkRegisteredUserView,
     InvitePersonView,
+    RecentlyDeletedPeopleView,
+    RestorePersonView,
+    PermanentDeletePersonView,
 )
 
 urlpatterns = [
@@ -83,4 +86,19 @@ urlpatterns = [
         InvitePersonView.as_view(),
         name="invite-person",
     ),
+    path(
+    "people/recently-deleted/",
+    RecentlyDeletedPeopleView.as_view(),
+    name="recently-deleted-people",
+),
+path(
+    "people/<int:pk>/restore/",
+    RestorePersonView.as_view(),
+    name="restore-person",
+),
+path(
+    "people/<int:pk>/permanent-delete/",
+    PermanentDeletePersonView.as_view(),
+    name="permanent-delete-person",
+),
 ]

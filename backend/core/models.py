@@ -150,6 +150,8 @@ class Person(TimestampedModel):
         blank=True,
         related_name="linked_person_records",
     )
+    is_deleted = models.BooleanField(default=False, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
     invited_email = models.EmailField(blank=True, default="")
     # A photo belongs to this Person record, not to their linked login account.
     profile_picture = models.ImageField(

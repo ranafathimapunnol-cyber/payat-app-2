@@ -10,7 +10,8 @@ from .views import (
     csrf_cookie_view,
     MeView,
     ProfilePictureView,
-    RegisteredUserSearchView
+    RegisteredUserSearchView,
+    GoogleLoginView,
 )
 
 urlpatterns = [
@@ -31,4 +32,5 @@ urlpatterns = [
     RegisteredUserSearchView.as_view(),
     name="registered-user-search",
 ),
+    path("google/", GoogleLoginView.as_view(), name="google-login"),
 ]

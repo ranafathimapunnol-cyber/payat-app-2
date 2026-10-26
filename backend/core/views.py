@@ -1,6 +1,6 @@
 import logging
 from decimal import Decimal
-
+from django.utils import timezone
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
@@ -165,13 +165,17 @@ class OldDataListCreateView(generics.ListCreateAPIView):
 # PEOPLE
 # =========================================================
 
+
 class PersonListCreateView(generics.ListCreateAPIView):
     serializer_class = PersonSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         queryset = (
-            Person.objects.filter(owner=self.request.user)
+            Person.objects.filter(
+                owner=self.request.user,
+                is_deleted=False,
+            )
             .select_related("owner", "linked_user")
         )
 
@@ -196,9 +200,74 @@ class PersonDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         return (
-            Person.objects.filter(owner=self.request.user)
+            Person.objects.filter(
+                owner=self.request.user,
+                is_deleted=False,
+            )
             .select_related("owner", "linked_user")
         )
+
+    def perform_destroy(self, instance):
+        instance.is_deleted = True
+        instance.deleted_at = timezone.now()
+        instance.save(update_fields=["is_deleted", "deleted_at"])
+
+class RecentlyDeletedPeopleView(generics.ListAPIView):
+    serializer_class = PersonSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Person.objects.filter(
+            owner=self.request.user,
+            is_deleted=True,
+        ).select_related("owner", "linked_user").order_by(
+            "-deleted_at", "-id"
+        )
+
+
+class RestorePersonView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        person = get_object_or_404(
+            Person,
+            pk=pk,
+            owner=request.user,
+            is_deleted=True,
+        )
+
+        person.is_deleted = False
+        person.deleted_at = None
+        person.save(update_fields=["is_deleted", "deleted_at"])
+
+        return Response(
+            {
+                "detail": "Person restored successfully.",
+                "person": PersonSerializer(
+                    person,
+                    context={"request": request},
+                ).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class PermanentDeletePersonView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        person = get_object_or_404(
+            Person,
+            pk=pk,
+            owner=request.user,
+            is_deleted=True,
+        )
+
+        person.delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 
 
 class PersonProfilePictureView(APIView):

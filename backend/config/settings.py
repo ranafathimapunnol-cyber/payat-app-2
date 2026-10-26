@@ -282,3 +282,5 @@ DEFAULT_FROM_EMAIL = os.getenv(
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
