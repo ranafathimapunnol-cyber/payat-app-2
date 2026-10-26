@@ -98,3 +98,6 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Local authentication cookies
+backend/payat-cookies.txt

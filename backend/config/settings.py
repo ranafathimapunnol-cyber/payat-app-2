@@ -9,32 +9,48 @@ from dotenv import load_dotenv
 # BASE DIRECTORY AND ENVIRONMENT
 # =========================================================
 
-# Base directory: payat-app/backend/
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-# Load environment variables from backend/.env
 load_dotenv(BASE_DIR / ".env")
+
+
+def env_bool(name, default=False):
+    return os.getenv(name, str(default)).strip().lower() in {
+        "true", "1", "yes", "on"
+    }
+
+
+def env_list(name, default=""):
+    return [
+        value.strip()
+        for value in os.getenv(name, default).split(",")
+        if value.strip()
+    ]
 
 
 # =========================================================
 # SECURITY SETTINGS
 # =========================================================
 
-SECRET_KEY = os.getenv(
-    "DJANGO_SECRET_KEY",
-    "django-insecure-dev-only-change-this-key-before-deployment",
+DEBUG = env_bool("DJANGO_DEBUG", True)
+
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "").strip()
+
+if not SECRET_KEY:
+    if not DEBUG:
+        raise ValueError(
+            "DJANGO_SECRET_KEY must be configured when DEBUG=False."
+        )
+    SECRET_KEY = "django-insecure-local-development-only-key"
+
+ALLOWED_HOSTS = env_list(
+    "DJANGO_ALLOWED_HOSTS",
+    "localhost,127.0.0.1",
 )
 
-DEBUG = os.getenv("DJANGO_DEBUG", "True").lower() == "true"
-
-ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.getenv(
-        "DJANGO_ALLOWED_HOSTS",
-        "localhost,127.0.0.1",
-    ).split(",")
-    if host.strip()
-]
+if not DEBUG and not ALLOWED_HOSTS:
+    raise ValueError(
+        "Set DJANGO_ALLOWED_HOSTS to your production domain."
+    )
 
 
 # =========================================================
@@ -42,7 +58,6 @@ ALLOWED_HOSTS = [
 # =========================================================
 
 INSTALLED_APPS = [
-    # Django applications
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -50,12 +65,10 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
 
-    # Third-party applications
     "rest_framework",
     "corsheaders",
     "rest_framework_simplejwt.token_blacklist",
 
-    # Local applications
     "accounts",
     "core",
 ]
@@ -67,6 +80,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -82,7 +96,6 @@ MIDDLEWARE = [
 # =========================================================
 
 ROOT_URLCONF = "config.urls"
-
 WSGI_APPLICATION = "config.wsgi.application"
 
 
@@ -122,6 +135,32 @@ DATABASES = {
         "CONN_MAX_AGE": 60,
     }
 }
+
+
+# =========================================================
+# CACHE
+# =========================================================
+# For production, configure REDIS_URL and install the redis
+# Python package. Local-memory cache is for development only.
+
+REDIS_URL = os.getenv("REDIS_URL", "").strip()
+
+if REDIS_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
+            "TIMEOUT": 300,
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "payat-local-cache",
+            "TIMEOUT": 300,
+        }
+    }
 
 
 # =========================================================
@@ -169,12 +208,27 @@ AUTH_PASSWORD_VALIDATORS = [
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        # Reads JWT access tokens from the HttpOnly cookie.
         "accounts.authentication.CookieJWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "100/day",
+        "user": "1000/day",
+
+        # These scopes take effect on views that explicitly
+        # use ScopedRateThrottle with the matching scope.
+        "login": "5/min",
+        "register": "5/hour",
+        "otp": "5/min",
+        "google_login": "10/min",
+        "token_refresh": "30/min",
+    },
 }
 
 
@@ -190,18 +244,12 @@ SIMPLE_JWT = {
     "UPDATE_LAST_LOGIN": False,
 }
 
-# Cookie configuration
 JWT_ACCESS_COOKIE_NAME = "access_token"
 JWT_REFRESH_COOKIE_NAME = "refresh_token"
 JWT_CSRF_COOKIE_NAME = "csrftoken"
 
 JWT_COOKIE_HTTPONLY = True
-
-# Secure cookies are enabled automatically when DEBUG=False.
 JWT_COOKIE_SECURE = not DEBUG
-
-# Suitable for local development when frontend and backend
-# use localhost consistently.
 JWT_COOKIE_SAMESITE = "Lax"
 
 JWT_ACCESS_COOKIE_MAX_AGE = 15 * 60
@@ -211,15 +259,16 @@ JWT_REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60
 # =========================================================
 # CORS AND CSRF
 # =========================================================
+# Set these environment variables to your actual frontend
+# origin(s) when deploying.
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+CORS_ALLOWED_ORIGINS = env_list(
+    "CORS_ALLOWED_ORIGINS",
+    "http://localhost:3000,http://127.0.0.1:3000",
+)
 
 CORS_ALLOW_CREDENTIALS = True
 
-# Allow the frontend to send the CSRF token header.
 CORS_ALLOW_HEADERS = [
     "accept",
     "authorization",
@@ -228,18 +277,34 @@ CORS_ALLOW_HEADERS = [
     "x-requested-with",
 ]
 
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+CSRF_TRUSTED_ORIGINS = env_list(
+    "CSRF_TRUSTED_ORIGINS",
+    "http://localhost:3000,http://127.0.0.1:3000",
+)
 
 
 # =========================================================
 # EMAIL
 # =========================================================
 
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 
-DEFAULT_FROM_EMAIL = "Payat <noreply@payat.local>"
+DEFAULT_FROM_EMAIL = os.getenv(
+    "DEFAULT_FROM_EMAIL",
+    EMAIL_HOST_USER or "noreply@localhost",
+)
+
+
+# =========================================================
+# GOOGLE AUTHENTICATION
+# =========================================================
+
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 
 
 # =========================================================
@@ -247,19 +312,32 @@ DEFAULT_FROM_EMAIL = "Payat <noreply@payat.local>"
 # =========================================================
 
 LANGUAGE_CODE = "en-us"
-
 TIME_ZONE = "Asia/Kolkata"
-
 USE_I18N = True
-
 USE_TZ = True
 
 
 # =========================================================
-# STATIC FILES
+# STATIC AND MEDIA FILES
 # =========================================================
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 
 
 # =========================================================
@@ -268,19 +346,44 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
 
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
-DEFAULT_FROM_EMAIL = os.getenv(
-    "DEFAULT_FROM_EMAIL",
-    EMAIL_HOST_USER,
-)
+# =========================================================
+# PRODUCTION SECURITY
+# =========================================================
 
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
 
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+    # Only trust X-Forwarded-Proto when your own trusted
+    # reverse proxy sets and overwrites this header.
+    if env_bool("DJANGO_TRUST_PROXY_SSL", False):
+        SECURE_PROXY_SSL_HEADER = (
+            "HTTP_X_FORWARDED_PROTO",
+            "https",
+        )
+
+    # Start with a short HSTS period. Increase only after
+    # confirming HTTPS works throughout your deployment.
+    SECURE_HSTS_SECONDS = int(
+        os.getenv("DJANGO_SECURE_HSTS_SECONDS", "3600")
+    )
+
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool(
+        "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", False
+    )
+
+    SECURE_HSTS_PRELOAD = env_bool(
+        "DJANGO_SECURE_HSTS_PRELOAD", False
+    )
+
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+    X_FRAME_OPTIONS = "DENY"
+
+else:
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False

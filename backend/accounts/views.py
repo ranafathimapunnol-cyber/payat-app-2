@@ -18,12 +18,14 @@ from rest_framework import status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User
 from .serializers import RegistrationSerializer
+
 
 # =========================================================
 # COOKIE HELPERS
@@ -69,6 +71,8 @@ def clear_auth_cookies(response):
 
 
 def get_client_ip(request):
+    # REMOTE_ADDR avoids trusting arbitrary client-supplied
+    # X-Forwarded-For headers.
     return request.META.get("REMOTE_ADDR")
 
 
@@ -83,11 +87,15 @@ def csrf_cookie_view(request):
 
 # =========================================================
 # REGISTRATION
+# POST /api/auth/register/
+# Rate: 5 requests per hour
 # =========================================================
 
 class RegisterView(APIView):
-    permission_classes = [AllowAny]  # noqa: RUF012
-    authentication_classes = []  # noqa: RUF012
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "register"
 
     def post(self, request):
         serializer = RegistrationSerializer(data=request.data)
@@ -173,7 +181,8 @@ class RegisterView(APIView):
 
             cache.set(rate_key, True, timeout=60)
 
-        except Exception:  # noqa: BLE001
+        except Exception:
+            # Avoid returning internal exception details to clients.
             return Response(
                 {
                     "detail": (
@@ -198,11 +207,15 @@ class RegisterView(APIView):
 
 # =========================================================
 # EMAIL OTP VERIFICATION
+# POST /api/auth/otp/verify/
+# Rate: 5 requests per minute
 # =========================================================
 
 class VerifyOTPView(APIView):
-    permission_classes = [AllowAny]  # noqa: RUF012
-    authentication_classes = []  # noqa: RUF012
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "otp"
 
     def post(self, request):
         email = request.data.get("email", "")
@@ -308,12 +321,16 @@ class VerifyOTPView(APIView):
 
 
 # =========================================================
-# LOGIN
+# EMAIL/PASSWORD LOGIN
+# POST /api/auth/login/
+# Rate: 5 requests per minute
 # =========================================================
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
 
     def post(self, request):
         email = request.data.get("email", "")
@@ -378,10 +395,19 @@ class LoginView(APIView):
         )
 
         return set_auth_cookies(response, access, refresh)
-    
+
+
+# =========================================================
+# GOOGLE LOGIN
+# POST /api/auth/google/
+# Rate: 10 requests per minute
+# =========================================================
+
 class GoogleLoginView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "google_login"
 
     def post(self, request):
         token = request.data.get("credential")
@@ -412,7 +438,6 @@ class GoogleLoginView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        # Only accept verified Google email addresses.
         if not google_user.get("email_verified"):
             return Response(
                 {"detail": "Your Google email must be verified."},
@@ -431,8 +456,6 @@ class GoogleLoginView(APIView):
         user = User.objects.filter(email__iexact=email).first()
 
         if user is None:
-            # Do not silently reactivate an existing inactive account.
-            # A new Google user is created as an active account.
             name_parts = name.split(maxsplit=1)
 
             user = User.objects.create_user(
@@ -486,11 +509,15 @@ class GoogleLoginView(APIView):
 
 # =========================================================
 # REFRESH ACCESS TOKEN
+# POST /api/auth/token/refresh/
+# Rate: 30 requests per minute
 # =========================================================
 
 class RefreshCookieView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "token_refresh"
 
     def post(self, request):
         raw_refresh = request.COOKIES.get(
@@ -546,6 +573,7 @@ class RefreshCookieView(APIView):
 
 # =========================================================
 # LOGOUT
+# POST /api/auth/logout/
 # =========================================================
 
 class LogoutView(APIView):
@@ -573,6 +601,7 @@ class LogoutView(APIView):
 
 # =========================================================
 # CURRENT USER PROFILE
+# GET /api/auth/me/
 # =========================================================
 
 class MeView(APIView):
@@ -610,11 +639,6 @@ class ProfilePictureView(APIView):
     def post(self, request):
         image = request.FILES.get("profile_picture")
 
-        print("=== PROFILE PICTURE UPLOAD ===")
-        print("Authenticated user:", request.user)
-        print("User ID:", request.user.id)
-        print("File received:", image.name if image else None)
-
         if not image:
             return Response(
                 {"detail": "Please select a profile picture."},
@@ -641,12 +665,7 @@ class ProfilePictureView(APIView):
         user.save(update_fields=["profile_picture", "updated_at"])
         user.refresh_from_db()
 
-        saved_picture = (
-            user.profile_picture.name if user.profile_picture else None
-        )
-        print("Saved picture:", saved_picture)
-
-        if not saved_picture:
+        if not user.profile_picture:
             return Response(
                 {"detail": "The profile picture could not be saved."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

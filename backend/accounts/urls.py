@@ -28,9 +28,9 @@ urlpatterns = [
         name="profile-picture",
     ),
     path(
-    "users/search/",
-    RegisteredUserSearchView.as_view(),
-    name="registered-user-search",
-),
+        "users/search/",
+        RegisteredUserSearchView.as_view(),
+        name="registered-user-search",
+    ),
     path("google/", GoogleLoginView.as_view(), name="google-login"),
 ]
