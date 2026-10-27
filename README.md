@@ -2,12 +2,20 @@
 
 A full-stack Payat management application built with **Django REST Framework**, **Next.js**, **TypeScript**, and **PostgreSQL**.
 
-PAYAT is designed to help users manage people, Payats, and related financial records through a structured dashboard with authenticated API access.
+PAYAT helps users manage people, Payats, and related financial records through a structured dashboard with authenticated API access.
 
-## Features
+## 🌐 Production Links
+
+- **Live Application:** https://payat-app-2.vercel.app/
+- **Backend API:** https://payat-backend.onrender.com
+- **Repository:** https://github.com/ranafathimapunnol-cyber/payat-app-2
+
+> The production application and API are deployed separately. Some features may require further configuration or testing.
+
+## ✨ Features
 
 - User registration and email OTP verification
-- Login and logout using JWT authentication cookies
+- JWT authentication using secure cookies
 - Access-token refresh and refresh-token rotation
 - User profile management
 - People management
@@ -16,15 +24,13 @@ PAYAT is designed to help users manage people, Payats, and related financial rec
 - PostgreSQL database integration
 - Protected frontend routes and authenticated API requests
 
-> Features listed here describe the project scope. Verify each feature in the current codebase before treating it as complete.
-
-## Tech Stack
+## 🛠️ Tech Stack
 
 ### Frontend
 - Next.js App Router
 - React
 - TypeScript
-- Tailwind CSS, where configured
+- Tailwind CSS
 
 ### Backend
 - Python
@@ -33,19 +39,15 @@ PAYAT is designed to help users manage people, Payats, and related financial rec
 - Simple JWT
 - PostgreSQL
 
-### Planned / deployment infrastructure
-- Vercel for the frontend
-- Render for the Django API
-- Supabase PostgreSQL for the production database
-- Supabase Storage for profile images
-- Shared Redis-compatible cache for coordinated rate limiting
+### Deployment
+- **Vercel** — Frontend hosting
+- **Render** — Django backend hosting
+- **Supabase** — PostgreSQL database
 
-Infrastructure marked as planned must be configured and tested before production use.
-
-## Project Structure
+## 📁 Project Structure
 
 ```text
-payat-app/
+payat-app-2/
 ├── backend/
 │   ├── accounts/
 │   ├── config/
@@ -60,27 +62,21 @@ payat-app/
 └── README.md
 ```
 
-The exact structure may vary as the project evolves.
+## 🚀 Local Development Setup
 
-## Prerequisites
-
-Install the following before starting development:
+### Prerequisites
 
 - Python compatible with the backend dependencies
 - Node.js and npm
 - PostgreSQL
 - Git
 
-## Local Development Setup
-
 ### 1. Clone the repository
 
 ```bash
-git clone <YOUR_REPOSITORY_URL>
-cd payat-app
+git clone https://github.com/ranafathimapunnol-cyber/payat-app-2.git
+cd payat-app-2
 ```
-
-Replace `<YOUR_REPOSITORY_URL>` with your Git repository URL.
 
 ### 2. Configure the backend
 
@@ -91,55 +87,16 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Create a `backend/.env` file containing your local configuration.
+Create a `backend/.env` file with your local database, Django, CORS, CSRF, and email settings. Use the variable names supported by your current Django configuration.
 
-Example template:
-
-```dotenv
-DJANGO_DEBUG=True
-DJANGO_SECRET_KEY=replace-with-a-local-development-secret
-DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
-
-DB_NAME=payat_app_db
-DB_USER=your_local_postgres_user
-DB_PASSWORD=your_local_postgres_password
-DB_HOST=localhost
-DB_PORT=5432
-DB_SSLMODE=prefer
-
-CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-CSRF_TRUSTED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USE_TLS=True
-EMAIL_USE_SSL=False
-EMAIL_HOST_USER=your_email_address
-EMAIL_HOST_PASSWORD=your_email_app_password
-DEFAULT_FROM_EMAIL=your_email_address
-```
-
-Use the variable names supported by your current Django settings. Never commit real secrets.
-
-Run database migrations:
+Run migrations and start Django:
 
 ```bash
 python3 manage.py migrate
-```
-
-Create an administrator account if required:
-
-```bash
-python3 manage.py createsuperuser
-```
-
-Start the backend development server:
-
-```bash
 python3 manage.py runserver
 ```
 
-The API will normally be available at `http://localhost:8000`.
+The local backend will be available at `http://localhost:8000`.
 
 ### 3. Configure the frontend
 
@@ -162,90 +119,65 @@ Start Next.js:
 npm run dev
 ```
 
-The frontend will normally be available at `http://localhost:3000`.
+The local frontend will be available at `http://localhost:3000`.
 
-Keep the frontend API URL consistent with the backend CORS and CSRF configuration.
+## 🔐 Security
 
-## Authentication and Security
+- Keep Django secret keys, database credentials, and email API keys private.
+- Never commit `.env` or `.env.local` files.
+- Keep `DEBUG=False` in production.
+- Configure HTTPS, secure cookies, CORS, and CSRF trusted origins correctly.
+- Validate uploaded files and enforce upload-size limits.
+- Apply appropriate authorization checks to people, Payats, and financial records.
+- Use persistent object storage for production profile images.
 
-The backend is configured to use JWT authentication cookies and a custom user model.
+Never expose database credentials or service-role keys through `NEXT_PUBLIC_` environment variables.
 
-Production security requirements include:
-
-- A strong, private Django secret key
-- `DEBUG=False`
-- Explicit allowed hosts
-- HTTPS and secure cookies
-- Correct CORS and CSRF trusted origins
-- Email credentials stored as environment variables
-- Object-level authorization for people, Payats, and transactions
-- Rate limiting for authentication and OTP endpoints
-- Validation and size limits for uploaded files
-
-Do not store production credentials in source code, frontend variables, or public repositories.
-
-Variables prefixed with `NEXT_PUBLIC_` are exposed to the browser. Never put database passwords, Django secrets, email passwords, or service-role keys in them.
-
-## Deployment
+## 🚢 Deployment
 
 ### Frontend — Vercel
 
-Configure the frontend project with:
-
 - Root directory: `frontend`
-- Build command: the configured Next.js build command
-- `NEXT_PUBLIC_API_BASE_URL`: the deployed backend API URL
+- Environment variable:
+
+```dotenv
+NEXT_PUBLIC_API_BASE_URL=https://payat-backend.onrender.com
+```
 
 ### Backend — Render
 
-Configure the Django service with:
+Configure the backend service with:
 
 - Root directory: `backend`
-- A production WSGI start command appropriate for the installed dependencies
+- Production WSGI start command
 - `DJANGO_DEBUG=False`
 - `DJANGO_SECRET_KEY`
 - `DJANGO_ALLOWED_HOSTS`
 - Production database credentials
 - CORS and CSRF trusted origins
-- Email environment variables
+- Email provider credentials
 
-Run database migrations as part of the deployment process using a controlled release step or deployment command.
+Run database migrations as part of the deployment process.
 
-### Database and storage
+### Database — Supabase
 
-Use a production PostgreSQL connection with SSL when supported by the provider's connection configuration.
+Use the production PostgreSQL connection details supplied by Supabase. Keep database credentials in the backend environment, never in frontend variables.
 
-Use persistent object storage for profile images instead of relying on an ephemeral application filesystem.
+## 🧪 Development Checks
 
-Before going live, test login, registration, OTP verification, token refresh, logout, permissions, and uploads against the deployed domains.
-
-## Development Checks
-
-Run Django's basic checks:
+Backend:
 
 ```bash
-cd backend
 python3 manage.py check
 python3 manage.py check --deploy
 ```
 
-Build the frontend:
+Frontend:
 
 ```bash
-cd frontend
 npm run build
 ```
 
-Address any reported errors and security warnings before release.
+Before release, test registration, email OTP verification, login, logout, token refresh, profile updates, image uploads, and access permissions against the deployed application.
 
-## Contributing
 
-1. Create a branch for your change.
-2. Keep secrets and local environment files out of Git.
-3. Test backend and frontend changes.
-4. Review authorization and validation for API changes.
-5. Submit your changes through a pull request.
-
-## License
-
-Add a license before distributing or publishing the project as open source.
