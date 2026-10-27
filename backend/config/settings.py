@@ -192,12 +192,6 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": (
             "django.contrib.auth.password_validation."
-            "CommonPasswordValidator"
-        ),
-    },
-    {
-        "NAME": (
-            "django.contrib.auth.password_validation."
             "NumericPasswordValidator"
         ),
     },
@@ -250,11 +244,7 @@ JWT_CSRF_COOKIE_NAME = "csrftoken"
 JWT_COOKIE_HTTPONLY = True
 JWT_COOKIE_SECURE = not DEBUG
 
-# Production frontend and backend use different origins.
-# None + Secure is needed for cross-site cookies.
-JWT_COOKIE_SAMESITE = (
-    "None" if not DEBUG else "Lax"
-)
+JWT_COOKIE_SAMESITE = "None" if not DEBUG else "Lax"
 
 JWT_ACCESS_COOKIE_MAX_AGE = 15 * 60
 JWT_REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60
@@ -290,32 +280,38 @@ CSRF_TRUSTED_ORIGINS = env_list(
     DEFAULT_FRONTEND_ORIGINS,
 )
 
-# Needed when frontend JavaScript must read the CSRF cookie.
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SAMESITE = (
-    "None" if not DEBUG else "Lax"
-)
+CSRF_COOKIE_SAMESITE = "None" if not DEBUG else "Lax"
 
 
 # =========================================================
-# EMAIL
+# EMAIL — BREVO SMTP
 # =========================================================
 
-# EMAIL — GMAIL SMTP
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
-EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_HOST = os.getenv(
+    "EMAIL_HOST",
+    "smtp-relay.brevo.com",
+).strip()
+
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
-EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
 
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
+EMAIL_USE_SSL = False
 
+# Use the SMTP login shown in Brevo's SMTP settings.
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "").strip()
+
+# Use the SMTP key, NOT the Brevo API key.
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "").strip()
+
+# This must match a sender email verified in Brevo.
 DEFAULT_FROM_EMAIL = os.getenv(
     "DEFAULT_FROM_EMAIL",
     EMAIL_HOST_USER,
-)
+).strip()
 
 # =========================================================
 # GOOGLE AUTHENTICATION
@@ -346,7 +342,10 @@ STORAGES = {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND": (
+            "whitenoise.storage."
+            "CompressedManifestStaticFilesStorage"
+        ),
     },
 }
 

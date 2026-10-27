@@ -2,6 +2,7 @@
 import logging
 import secrets
 from datetime import timedelta
+from django.middleware.csrf import get_token
 
 from core.models import OTP, AuditLog, Person
 from django.conf import settings
@@ -80,10 +81,14 @@ def get_client_ip(request):
 # CSRF TOKEN ENDPOINT
 # =========================================================
 
+
+
 @ensure_csrf_cookie
 def csrf_cookie_view(request):
-    return JsonResponse({"detail": "CSRF cookie is ready."})
-
+    return JsonResponse({
+        "detail": "CSRF cookie is ready.",
+        "csrfToken": get_token(request),
+    })
 
 # =========================================================
 # REGISTRATION

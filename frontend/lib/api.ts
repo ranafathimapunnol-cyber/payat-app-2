@@ -3,25 +3,35 @@ const API_BASE = (
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
 ).replace(/\/+$/, "");
 
-function getCookie(name: string): string | null {
-  if (typeof document === "undefined") return null;
-
-  const cookie = document.cookie
-    .split("; ")
-    .find((item) => item.startsWith(`${name}=`));
-
-  return cookie
-    ? decodeURIComponent(cookie.split("=").slice(1).join("="))
-    : null;
-}
-
 function buildApiUrl(path: string): string {
-  // Allow full URLs without adding the API base twice.
   if (/^https?:\/\//i.test(path)) {
     return path;
   }
 
   return `${API_BASE}/${path.replace(/^\/+/, "")}`;
+}
+
+async function getCsrfToken(): Promise<string> {
+  const response = await fetch(buildApiUrl("/api/auth/csrf/"), {
+    method: "GET",
+    credentials: "include",
+    headers: {
+      Accept: "application/json",
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error("Could not obtain the security token. Please try again.");
+  }
+
+  const data = await response.json();
+
+  if (typeof data.csrfToken !== "string" || !data.csrfToken) {
+    throw new Error("The server did not return a valid security token.");
+  }
+
+  return data.csrfToken;
 }
 
 export async function apiFetch(
@@ -37,24 +47,8 @@ export async function apiFetch(
   const unsafeMethods = ["POST", "PUT", "PATCH", "DELETE"];
 
   if (unsafeMethods.includes(method)) {
-    let csrfToken = getCookie("csrftoken");
-
-    if (!csrfToken) {
-      try {
-        await fetch(buildApiUrl("/api/auth/csrf/"), {
-          method: "GET",
-          credentials: "include",
-        });
-
-        csrfToken = getCookie("csrftoken");
-      } catch {
-        // Let the original request report any connection error.
-      }
-    }
-
-    if (csrfToken) {
-      headers.set("X-CSRFToken", csrfToken);
-    }
+    const csrfToken = await getCsrfToken();
+    headers.set("X-CSRFToken", csrfToken);
   }
 
   return fetch(url, {
