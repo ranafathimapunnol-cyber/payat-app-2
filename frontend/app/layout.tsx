@@ -17,8 +17,8 @@ export const metadata: Metadata = {
   title: "PAYAT",
   description: "PAYAT application",
   verification: {
-    google: "HpI3RtRvZPfTasDMb2aRJ0w0V1bCVBjqgahpW9ia_PI",
-  },
+  google: "HpI3RtRvZPfTasDMb2aRJ0w0V1bCVBjqgahpW9ia_PI",
+},
 };
 
 export default function RootLayout({
