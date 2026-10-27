@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   title: "PAYAT",
   description: "PAYAT application",
   verification: {
-    google: "YOUR_VERIFICATION_CODE",
+    google: "HpI3RtRvZPfTasDMb2aRJ0w0V1bCVBjqgahpW9ia_PI",
   },
 };
 
