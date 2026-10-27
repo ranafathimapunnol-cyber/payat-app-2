@@ -21,7 +21,7 @@ def env_bool(name, default=False):
 
 def env_list(name, default=""):
     return [
-        value.strip()
+        value.strip().rstrip("/")
         for value in os.getenv(name, default).split(",")
         if value.strip()
     ]
@@ -58,17 +58,15 @@ if not DEBUG and not ALLOWED_HOSTS:
 # =========================================================
 
 INSTALLED_APPS = [
+    "corsheaders",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-
     "rest_framework",
-    "corsheaders",
     "rest_framework_simplejwt.token_blacklist",
-
     "accounts",
     "core",
 ]
@@ -79,10 +77,10 @@ INSTALLED_APPS = [
 # =========================================================
 
 MIDDLEWARE = [
-    "django.middleware.security.SecurityMiddleware",
-     "whitenoise.middleware.WhiteNoiseMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -140,8 +138,6 @@ DATABASES = {
 # =========================================================
 # CACHE
 # =========================================================
-# For production, configure REDIS_URL and install the redis
-# Python package. Local-memory cache is for development only.
 
 REDIS_URL = os.getenv("REDIS_URL", "").strip()
 
@@ -196,6 +192,12 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": (
             "django.contrib.auth.password_validation."
+            "CommonPasswordValidator"
+        ),
+    },
+    {
+        "NAME": (
+            "django.contrib.auth.password_validation."
             "NumericPasswordValidator"
         ),
     },
@@ -220,9 +222,6 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": "100/day",
         "user": "1000/day",
-
-        # These scopes take effect on views that explicitly
-        # use ScopedRateThrottle with the matching scope.
         "login": "5/min",
         "register": "5/hour",
         "otp": "5/min",
@@ -250,7 +249,12 @@ JWT_CSRF_COOKIE_NAME = "csrftoken"
 
 JWT_COOKIE_HTTPONLY = True
 JWT_COOKIE_SECURE = not DEBUG
-JWT_COOKIE_SAMESITE = "Lax"
+
+# Production frontend and backend use different origins.
+# None + Secure is needed for cross-site cookies.
+JWT_COOKIE_SAMESITE = (
+    "None" if not DEBUG else "Lax"
+)
 
 JWT_ACCESS_COOKIE_MAX_AGE = 15 * 60
 JWT_REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60
@@ -259,12 +263,16 @@ JWT_REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60
 # =========================================================
 # CORS AND CSRF
 # =========================================================
-# Set these environment variables to your actual frontend
-# origin(s) when deploying.
+
+DEFAULT_FRONTEND_ORIGINS = (
+    "http://localhost:3000,http://127.0.0.1:3000"
+    if DEBUG
+    else "https://payat-app-2.vercel.app"
+)
 
 CORS_ALLOWED_ORIGINS = env_list(
     "CORS_ALLOWED_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:3000",
+    DEFAULT_FRONTEND_ORIGINS,
 )
 
 CORS_ALLOW_CREDENTIALS = True
@@ -279,7 +287,14 @@ CORS_ALLOW_HEADERS = [
 
 CSRF_TRUSTED_ORIGINS = env_list(
     "CSRF_TRUSTED_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:3000",
+    DEFAULT_FRONTEND_ORIGINS,
+)
+
+# Needed when frontend JavaScript must read the CSRF cookie.
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SAMESITE = (
+    "None" if not DEBUG else "Lax"
 )
 
 
@@ -293,6 +308,8 @@ EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+
+EMAIL_TIMEOUT = 10
 
 DEFAULT_FROM_EMAIL = os.getenv(
     "DEFAULT_FROM_EMAIL",
@@ -357,16 +374,12 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
 
-    # Only trust X-Forwarded-Proto when your own trusted
-    # reverse proxy sets and overwrites this header.
     if env_bool("DJANGO_TRUST_PROXY_SSL", False):
         SECURE_PROXY_SSL_HEADER = (
             "HTTP_X_FORWARDED_PROTO",
             "https",
         )
 
-    # Start with a short HSTS period. Increase only after
-    # confirming HTTPS works throughout your deployment.
     SECURE_HSTS_SECONDS = int(
         os.getenv("DJANGO_SECURE_HSTS_SECONDS", "3600")
     )
