@@ -21,3 +21,6 @@ gunicorn==25.3.0
 whitenoise==6.12.0
 
 requests==2.34.0
+
+requests==2.34.0
+resend==2.50.0

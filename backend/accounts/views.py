@@ -6,7 +6,7 @@ from core.models import OTP, AuditLog, Person
 from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
 from django.core.cache import cache
-from django.core.mail import send_mail
+import resend
 from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
@@ -123,6 +123,12 @@ class RegisterView(APIView):
                 status=status.HTTP_409_CONFLICT,
             )
 
+        if not settings.RESEND_API_KEY:
+            return Response(
+                {"detail": "Email service is not configured."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
         otp_code = f"{secrets.randbelow(1_000_000):06d}"
 
         try:
@@ -166,23 +172,30 @@ class RegisterView(APIView):
                     ip_address=get_client_ip(request),
                 )
 
-                send_mail(
-                    subject="Verify your Payat account",
-                    message=(
+                resend.api_key = settings.RESEND_API_KEY
+
+                resend.Emails.send({
+                    "from": settings.RESEND_FROM_EMAIL,
+                    "to": [email],
+                    "subject": "Verify your Payat account",
+                    "text": (
                         f"Hello {name},\n\n"
                         f"Your Payat verification code is {otp_code}.\n"
                         "It expires in 5 minutes.\n\n"
                         "If you did not request this, ignore this email."
                     ),
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[email],
-                    fail_silently=False,
-                )
+                })
 
             cache.set(rate_key, True, timeout=60)
 
         except Exception:
-            # Avoid returning internal exception details to clients.
+            # Log the real exception on the server for debugging.
+            import logging
+
+            logging.getLogger(__name__).exception(
+                "Payat registration or OTP email sending failed."
+            )
+
             return Response(
                 {
                     "detail": (
