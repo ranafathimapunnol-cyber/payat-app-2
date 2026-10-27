@@ -65,6 +65,11 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+
+    # Cloudinary media storage
+    "cloudinary_storage",
+    "cloudinary",
+
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
     "accounts",
@@ -243,7 +248,6 @@ JWT_CSRF_COOKIE_NAME = "csrftoken"
 
 JWT_COOKIE_HTTPONLY = True
 JWT_COOKIE_SECURE = not DEBUG
-
 JWT_COOKIE_SAMESITE = "None" if not DEBUG else "Lax"
 
 JWT_ACCESS_COOKIE_MAX_AGE = 15 * 60
@@ -301,17 +305,14 @@ EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
 EMAIL_USE_SSL = False
 
-# Use the SMTP login shown in Brevo's SMTP settings.
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "").strip()
-
-# Use the SMTP key, NOT the Brevo API key.
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "").strip()
 
-# This must match a sender email verified in Brevo.
 DEFAULT_FROM_EMAIL = os.getenv(
     "DEFAULT_FROM_EMAIL",
     EMAIL_HOST_USER,
 ).strip()
+
 
 # =========================================================
 # GOOGLE AUTHENTICATION
@@ -338,9 +339,14 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 STORAGES = {
+    # Uploaded profile pictures and other media go to Cloudinary.
     "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "BACKEND": (
+            "cloudinary_storage.storage.MediaCloudinaryStorage"
+        ),
     },
+
+    # Keep existing static-file handling through WhiteNoise.
     "staticfiles": {
         "BACKEND": (
             "whitenoise.storage."

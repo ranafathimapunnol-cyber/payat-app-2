@@ -24,3 +24,7 @@ requests==2.34.0
 
 requests==2.34.0
 resend==2.50.0
+
+
+cloudinary==1.46.3
+django-cloudinary-storage==0.3.0
