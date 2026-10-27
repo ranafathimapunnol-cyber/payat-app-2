@@ -1,6 +1,8 @@
 
 import logging
 import secrets
+import requests
+
 from datetime import timedelta
 from django.middleware.csrf import get_token
 
@@ -8,25 +10,28 @@ from core.models import OTP, AuditLog, Person
 from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
 from django.core.cache import cache
-from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
+
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
+
 from rest_framework import status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
+
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User
 from .serializers import RegistrationSerializer
+
 
 
 # =========================================================
@@ -96,6 +101,13 @@ def csrf_cookie_view(request):
 # Rate: 5 requests per hour
 # =========================================================
 
+
+# =========================================================
+# REGISTRATION
+# POST /api/auth/register/
+# Rate: 5 requests per hour
+# =========================================================
+
 class RegisterView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
@@ -128,11 +140,14 @@ class RegisterView(APIView):
                 status=status.HTTP_409_CONFLICT,
             )
 
-        # Gmail SMTP must be configured on the server.
-        if (
-            not settings.EMAIL_HOST_USER
-            or not settings.EMAIL_HOST_PASSWORD
-        ):
+        # Brevo HTTPS API configuration.
+        brevo_api_key = getattr(settings, "BREVO_API_KEY", "").strip()
+        sender_email = getattr(settings, "DEFAULT_FROM_EMAIL", "").strip()
+
+        if not brevo_api_key or not sender_email:
+            logging.getLogger(__name__).error(
+                "Brevo email configuration is missing."
+            )
             return Response(
                 {"detail": "Email service is not configured."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -142,6 +157,7 @@ class RegisterView(APIView):
 
         try:
             with transaction.atomic():
+                # Create or update the inactive account.
                 if existing_user:
                     user = existing_user
                     user.username = email
@@ -161,11 +177,13 @@ class RegisterView(APIView):
                     user.set_password(password)
                     user.save()
 
+                # Expire any previous pending OTPs.
                 OTP.objects.filter(
                     user=user,
                     status=OTP.Status.PENDING,
                 ).update(status=OTP.Status.EXPIRED)
 
+                # Create a new OTP with a five-minute expiry.
                 OTP.objects.create(
                     user=user,
                     otp_hash=make_password(otp_code),
@@ -181,32 +199,72 @@ class RegisterView(APIView):
                     ip_address=get_client_ip(request),
                 )
 
-                # Send the OTP using Gmail SMTP through Django.
-                send_mail(
-                    subject="Verify your Payat account",
-                    message=(
+                # Send the OTP through Brevo's HTTPS API.
+                email_payload = {
+                    "sender": {
+                        "name": "PAYAT",
+                        "email": sender_email,
+                    },
+                    "to": [
+                        {
+                            "email": email,
+                            "name": name,
+                        }
+                    ],
+                    "subject": "Verify your Payat account",
+                    "textContent": (
                         f"Hello {name},\n\n"
                         f"Your Payat verification code is {otp_code}.\n"
                         "It expires in 5 minutes.\n\n"
                         "If you did not request this, ignore this email."
                     ),
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[email],
-                    fail_silently=False,
+                }
+
+                email_response = requests.post(
+                    "https://api.brevo.com/v3/smtp/email",
+                    headers={
+                        "accept": "application/json",
+                        "api-key": brevo_api_key,
+                        "content-type": "application/json",
+                    },
+                    json=email_payload,
+                    timeout=10,
                 )
 
+                if not email_response.ok:
+                    # Log the status, but never log the API key or OTP.
+                    logging.getLogger(__name__).error(
+                        "Brevo rejected OTP email: HTTP %s",
+                        email_response.status_code,
+                    )
+                    email_response.raise_for_status()
+
+            # Apply the cooldown only after successful email delivery.
             cache.set(rate_key, True, timeout=60)
+
+        except requests.RequestException:
+            logging.getLogger(__name__).exception(
+                "Brevo OTP email delivery failed."
+            )
+            return Response(
+                {
+                    "detail": (
+                        "We could not send your verification email. "
+                        "Please try again later."
+                    )
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
         except Exception:
             logging.getLogger(__name__).exception(
-                "Payat registration or Gmail OTP delivery failed."
+                "Payat registration failed."
             )
-
             return Response(
                 {
                     "detail": (
                         "Unable to start registration. "
-                        "Please check the server configuration and try again."
+                        "Please try again later."
                     )
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -222,6 +280,7 @@ class RegisterView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
 
 
 # =========================================================
