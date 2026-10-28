@@ -1,13 +1,15 @@
 import logging
+import os
 from decimal import Decimal
-from django.utils import timezone
+
+import requests
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.mail import send_mail
 from django.core.validators import validate_email
-from django.db import IntegrityError, models, transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
@@ -39,6 +41,57 @@ from .serializers import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+# =========================================================
+# BREVO EMAIL API
+# =========================================================
+
+def send_brevo_email(to_email, to_name, subject, text_content):
+    """Send an email using Brevo's HTTP API."""
+
+    api_key = os.environ.get("BREVO_API_KEY")
+    sender_email = os.environ.get("BREVO_SENDER_EMAIL")
+
+    if not api_key:
+        raise RuntimeError("BREVO_API_KEY is not configured.")
+
+    if not sender_email:
+        raise RuntimeError("BREVO_SENDER_EMAIL is not configured.")
+
+    response = requests.post(
+        "https://api.brevo.com/v3/smtp/email",
+        headers={
+            "accept": "application/json",
+            "api-key": api_key,
+            "content-type": "application/json",
+        },
+        json={
+            "sender": {
+                "email": sender_email,
+                "name": "PAYAT",
+            },
+            "to": [
+                {
+                    "email": to_email,
+                    "name": to_name,
+                }
+            ],
+            "subject": subject,
+            "textContent": text_content,
+        },
+        timeout=20,
+    )
+
+    if not response.ok:
+        logger.error(
+            "Brevo API failed: status=%s response=%s",
+            response.status_code,
+            response.text[:1000],
+        )
+        response.raise_for_status()
+
+    return response.json() if response.content else {}
 
 
 # =========================================================
@@ -165,7 +218,6 @@ class OldDataListCreateView(generics.ListCreateAPIView):
 # PEOPLE
 # =========================================================
 
-
 class PersonListCreateView(generics.ListCreateAPIView):
     serializer_class = PersonSerializer
     permission_classes = [IsAuthenticated]
@@ -212,16 +264,19 @@ class PersonDetailView(generics.RetrieveUpdateDestroyAPIView):
         instance.deleted_at = timezone.now()
         instance.save(update_fields=["is_deleted", "deleted_at"])
 
+
 class RecentlyDeletedPeopleView(generics.ListAPIView):
     serializer_class = PersonSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Person.objects.filter(
-            owner=self.request.user,
-            is_deleted=True,
-        ).select_related("owner", "linked_user").order_by(
-            "-deleted_at", "-id"
+        return (
+            Person.objects.filter(
+                owner=self.request.user,
+                is_deleted=True,
+            )
+            .select_related("owner", "linked_user")
+            .order_by("-deleted_at", "-id")
         )
 
 
@@ -266,8 +321,6 @@ class PermanentDeletePersonView(APIView):
         person.delete()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-
 
 
 class PersonProfilePictureView(APIView):
@@ -339,6 +392,7 @@ class PersonPayatRecordView(generics.RetrieveUpdateAPIView):
         record, _ = PersonPayatRecord.objects.get_or_create(
             person=person
         )
+
         return record
 
 
@@ -347,7 +401,7 @@ class PersonPayatRecordView(generics.RetrieveUpdateAPIView):
 # =========================================================
 
 class LinkRegisteredUserView(APIView):
-    permission_classes = [IsAuthenticated]  # noqa: RUF012
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         user_id = request.data.get("user_id")
@@ -421,7 +475,8 @@ class LinkRegisteredUserView(APIView):
                 )
 
             logger.exception(
-                "Failed to link registered user %s", user_id
+                "Failed to link registered user %s",
+                user_id,
             )
 
             return Response(
@@ -436,7 +491,7 @@ class LinkRegisteredUserView(APIView):
 
 
 # =========================================================
-# INVITATIONS
+# INVITATIONS — BREVO API
 # =========================================================
 
 class InvitePersonView(APIView):
@@ -477,7 +532,7 @@ class InvitePersonView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Link an existing, active account immediately.
+        # Link an existing active account immediately.
         if existing_user and existing_user.is_active:
             existing_person = Person.objects.filter(
                 owner=request.user,
@@ -512,6 +567,7 @@ class InvitePersonView(APIView):
                     "Failed to create Person for invited user %s",
                     email,
                 )
+
                 return Response(
                     {"detail": "This person could not be linked."},
                     status=status.HTTP_409_CONFLICT,
@@ -525,7 +581,7 @@ class InvitePersonView(APIView):
                 status=status.HTTP_201_CREATED,
             )
 
-        # Save an invitation without creating a Person yet.
+        # Save the pending invitation before sending the email.
         try:
             with transaction.atomic():
                 PendingInvitation.objects.update_or_create(
@@ -536,42 +592,47 @@ class InvitePersonView(APIView):
                         "phone": phone,
                     },
                 )
+
         except (IntegrityError, TypeError, ValueError):
             logger.exception(
-                "Could not save pending invitation for %s", email
+                "Could not save pending invitation for %s",
+                email,
             )
+
             return Response(
                 {"detail": "The invitation could not be saved."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         frontend_url = getattr(
-            settings, "FRONTEND_URL", "http://localhost:3000"
+            settings,
+            "FRONTEND_URL",
+            "http://localhost:3000",
         ).rstrip("/")
+
         registration_url = f"{frontend_url}/register"
 
-        try:
-            sent_count = send_mail(
-                subject="You're invited to join PAYAT",
-                message=(
-                    f"Hello {name},\n\n"
-                    "You have been invited to join PAYAT.\n"
-                    f"Register using this email address: {email}\n\n"
-                    f"Register here: {registration_url}\n\n"
-                    "After registering, verify your email using the OTP "
-                    "to complete registration."
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[email],
-                fail_silently=False,
-            )
+        message = (
+            f"Hello {name},\n\n"
+            "You have been invited to join PAYAT.\n"
+            f"Register using this email address: {email}\n\n"
+            f"Register here: {registration_url}\n\n"
+            "After registering, verify your email using the OTP "
+            "to complete registration."
+        )
 
-            if sent_count != 1:
-                raise RuntimeError("Invitation email was not sent.")
+        try:
+            send_brevo_email(
+                to_email=email,
+                to_name=name,
+                subject="You're invited to join PAYAT",
+                text_content=message,
+            )
 
         except Exception:
             logger.exception(
-                "Invitation email failed for %s", email
+                "Invitation email failed for %s",
+                email,
             )
 
             return Response(
@@ -586,10 +647,7 @@ class InvitePersonView(APIView):
 
         return Response(
             {
-                "detail": (
-                    "Invitation sent. The person will appear in your "
-                    "People list after registering and verifying their email."
-                ),
+                "detail": "Invitation email sent successfully.",
                 "email": email,
             },
             status=status.HTTP_200_OK,
@@ -624,13 +682,10 @@ class PersonPayatEntryListCreateView(generics.ListCreateAPIView):
         )
 
     def perform_create(self, serializer):
-        person = self.get_person()
-        serializer.save(person=person)
+        serializer.save(person=self.get_person())
 
 
-class PersonPayatEntryDetailView(
-    generics.RetrieveUpdateDestroyAPIView
-):
+class PersonPayatEntryDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = PersonPayatEntrySerializer
     permission_classes = [IsAuthenticated]
 
@@ -644,24 +699,24 @@ class PersonPayatEntryDetailView(
 # =========================================================
 # DASHBOARD SUMMARY
 # =========================================================
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def dashboard_summary(request):
-    """
-    Return dashboard summary and recent activity.
-    Registered Users counts active, non-blocked accounts
-    that have completed email verification.
-    """
+    """Return dashboard summary and recent activity."""
+
     user = request.user
 
-    # Count verified, active, non-blocked registered users.
-    # This assumes your OTP verification activates the account.
     registered_users_count = User.objects.filter(
         is_active=True,
         is_blocked=False,
     ).count()
 
-    people = Person.objects.filter(owner=user)
+    people = Person.objects.filter(
+        owner=user,
+        is_deleted=False,
+    )
+
     people_count = people.count()
 
     active_payats_count = (
@@ -682,19 +737,17 @@ def dashboard_summary(request):
         except PersonPayatRecord.DoesNotExist:
             continue
 
-        my_payat_total = record.total_my_payat
-        old_amount = record.mumb_kittuvaan
-
         to_give += max(
             Decimal("0.00"),
-            my_payat_total - old_amount,
+            record.total_my_payat - record.mumb_kittuvaan,
         )
 
         to_receive += record.bakki_kittan
 
-   
     recent_entries = (
-        PersonPayatEntry.objects.filter(person__owner=user)
+        PersonPayatEntry.objects.filter(
+            person__owner=user
+        )
         .select_related("person")
         .order_by("-created_at", "-id")
     )
@@ -725,4 +778,3 @@ def dashboard_summary(request):
         },
         status=status.HTTP_200_OK,
     )
-
