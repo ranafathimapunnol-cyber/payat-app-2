@@ -604,11 +604,14 @@ class InvitePersonView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        frontend_url = getattr(
+        frontend_url =(
+        os.environ.get("FRONTEND_URL")
+        or getattr(
             settings,
             "FRONTEND_URL",
-            "http://localhost:3000",
-        ).rstrip("/")
+            "https://payat-app-2.vercel.app",
+        )    
+    ).rstrip("/")
 
         registration_url = f"{frontend_url}/register"
 
