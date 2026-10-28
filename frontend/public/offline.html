@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102A56">
+  <title>PAYAT — Offline</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #f5f7fb;
+      color: #102A56;
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+    main { padding: 24px; }
+    h1 { font-size: 30px; }
+    p { color: #526078; line-height: 1.6; }
+    button {
+      padding: 12px 20px;
+      border: 0;
+      border-radius: 8px;
+      background: #102A56;
+      color: white;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>PAYAT</h1>
+    <p>You’re currently offline.<br>Please reconnect to use your payment records.</p>
+    <button onclick="location.reload()">Try again</button>
+  </main>
+</body>
+</html>

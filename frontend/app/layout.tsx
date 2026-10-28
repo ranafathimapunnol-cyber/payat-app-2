@@ -1,5 +1,5 @@
-
-import type { Metadata } from "next";
+import PWARegister from "@/components/pwa-register";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -14,11 +14,31 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PAYAT",
-  description: "PAYAT application",
+  title: {
+    default: "PAYAT",
+    template: "%s | PAYAT",
+  },
+  description: "PAYAT — Manage your Payats and payment records.",
+  applicationName: "PAYAT",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "PAYAT",
+  },
+  icons: {
+    icon: "/icons/icon-192.png",
+    apple: "/icons/apple-touch-icon.png",
+  },
   verification: {
-  google: "HpI3RtRvZPfTasDMb2aRJ0w0V1bCVBjqgahpW9ia_PI",
-},
+    google: "HpI3RtRvZPfTasDMb2aRJ0w0V1bCVBjqgahpW9ia_PI",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#102A56",
 };
 
 export default function RootLayout({
@@ -30,8 +50,9 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        {children}
-      </body>
+  {children}
+  <PWARegister />
+</body>
     </html>
   );
 }
